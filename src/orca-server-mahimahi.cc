@@ -35,7 +35,7 @@
 int main(int argc, char **argv)
 {
     DBGPRINT(DBGSERVER,4,"Main\n");
-    if(argc!=14)
+    if(argc!=8)
 	{
         DBGERROR("argc:%d\n",argc);
         for(int i=0;i<argc;i++)
@@ -58,16 +58,10 @@ int main(int argc, char **argv)
     target=50;
     target_ratio=1;
     report_period=atoi(argv[3]);
-   	first_time=atoi(argv[4]);
-    scheme=argv[5];
-    actor_id=atoi(argv[6]);
-    downlink=argv[7];
-    uplink=argv[8];
-    delay_ms=atoi(argv[9]);
-    log_file=argv[10];
-    duration=atoi(argv[11]);
-    qsize=atoi(argv[12]);
-    duration_steps=atoi(argv[13]);
+    scheme=argv[4];
+    actor_id=atoi(argv[5]);
+    duration=atoi(argv[6]);
+    duration_steps=atoi(argv[7]);
 
     start_server(flow_num, client_port);
 	DBGMARK(DBGSERVER,5,"DONE!\n");
@@ -145,16 +139,16 @@ void start_server(int flow_num, int client_port)
     }
 
     char container_cmd[500];
-    sprintf(container_cmd,"sudo -u `whoami` %s/client $MAHIMAHI_BASE 1 %d",path,client_port);
+    // sprintf(container_cmd,"sudo -u `whoami` %s/client $MAHIMAHI_BASE 1 %d",path,client_port);
     char cmd[1000];
     char final_cmd[1000];
 
-    if (first_time==4 || first_time==2)
-        sprintf(cmd, "sudo -u `whoami`   mm-delay %d mm-link %s/../traces/%s %s/../traces/%s --downlink-log=%s/log/down-%s --uplink-queue=droptail --uplink-queue-args=\"packets=%d\" --downlink-queue=droptail --downlink-queue-args=\"packets=%d\" -- sh -c \'%s\' &",delay_ms,path,uplink,path,downlink,path,log_file,qsize,qsize,container_cmd);
-    else
-        sprintf(cmd, "sudo -u `whoami`  mm-delay %d mm-link %s/../traces/%s %s/../traces/%s --uplink-queue=droptail --uplink-queue-args=\"packets=%d\" --downlink-queue=droptail --downlink-queue-args=\"packets=%d\" -- sh -c \'%s\' &",delay_ms,path,uplink,path,downlink,qsize,qsize,container_cmd);
+    // if (first_time==4 || first_time==2)
+    //     sprintf(cmd, "sudo -u `whoami`   mm-delay %d mm-link %s/../traces/%s %s/../traces/%s --downlink-log=%s/log/down-%s --uplink-queue=droptail --uplink-queue-args=\"packets=%d\" --downlink-queue=droptail --downlink-queue-args=\"packets=%d\" -- sh -c \'%s\' &",delay_ms,path,uplink,path,downlink,path,log_file,qsize,qsize,container_cmd);
+    // else
+    //     sprintf(cmd, "sudo -u `whoami`  mm-delay %d mm-link %s/../traces/%s %s/../traces/%s --uplink-queue=droptail --uplink-queue-args=\"packets=%d\" --downlink-queue=droptail --downlink-queue-args=\"packets=%d\" -- sh -c \'%s\' &",delay_ms,path,uplink,path,downlink,qsize,qsize,container_cmd);
     
-    sprintf(final_cmd,"%s",cmd);
+    // sprintf(final_cmd,"%s",cmd);
 
     DBGPRINT(DBGSERVER,0,"%s\n",final_cmd);
     info->trace=trace;
@@ -188,19 +182,11 @@ void start_server(int flow_num, int client_port)
         printf("Error attaching shared memory id");
         return;
     } 
-    if (first_time==1){
-        sprintf(cmd,"/home/`whoami`/venv/bin/python %s/d5.py --tb_interval=1 --base_path=%s --task=%d --job_name=actor --train_dir=%s --mem_r=%d --mem_w=%d &",path,path,actor_id,path,(int)key,(int)key_rl);
-        DBGPRINT(0,0,"Starting RL Module (Without load) ...\n%s",cmd);
-    }
-    else if (first_time==2 || first_time==4){
-        sprintf(cmd,"/home/`whoami`/venv/bin/python %s/d5.py --tb_interval=1 --base_path=%s --load --eval --task=%d --job_name=actor --train_dir=%s  --mem_r=%d --mem_w=%d &",path,path,actor_id,path,(int)key,(int)key_rl);
-        DBGPRINT(0,0,"Starting RL Module (No learning) ...\n%s",cmd);
-    }
-    else
-    {
-        sprintf(cmd,"/home/`whoami`/venv/bin/python %s/d5.py --load --tb_interval=1 --base_path=%s --task=%d --job_name=actor --train_dir=%s  --mem_r=%d --mem_w=%d &",path,path,actor_id,path,(int)key,(int)key_rl);
-        DBGPRINT(0,0,"Starting RL Module (With load) ...\n%s",cmd);
-    }
+    
+  
+    sprintf(cmd,"/home/`whoami`/venv/bin/python %s/d5.py --tb_interval=1 --base_path=%s --load --eval --task=%d --job_name=actor --train_dir=%s  --mem_r=%d --mem_w=%d &",path,path,actor_id,path,(int)key,(int)key_rl);
+    DBGPRINT(0,0,"Starting RL Module (No learning) ...\n%s",cmd);
+  
  
     initial_timestamp();
     system(cmd);
@@ -239,8 +225,8 @@ void start_server(int flow_num, int client_port)
     }
     DBGPRINT(0,0,"RL Module is Ready. Let's Start ...\n\n");    
     usleep(actor_id*10000+10000);
-    //Now its time to start the server-client app and tune C2TCP socket.
-    system(final_cmd);
+    // //Now its time to start the server-client app and tune C2TCP socket.
+    // system(final_cmd);
         
     //Start listen
     int maxfdp=-1;
