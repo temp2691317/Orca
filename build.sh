@@ -1,3 +1,4 @@
+#!/bin/sh
 g++ -pthread src/orca-server-mahimahi.cc src/flow.cc -o orca-server-mahimahi
 g++ src/client.c -o client
 cp client rl-module/

@@ -1,3 +1,4 @@
+#!/bin/sh
 sudo sysctl -q net.ipv4.tcp_wmem="4096 32768 4194304" #Doubling the default value from 16384 to 32768
 sudo sysctl -w -q net.ipv4.tcp_low_latency=1
 sudo sysctl -w -q net.ipv4.tcp_autocorking=0
