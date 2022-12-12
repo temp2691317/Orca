@@ -1,20 +1,10 @@
 #!/bin/bash
-if [ $# != 5 ]
-then
-    echo -e "usage:$0 port path period scheme finish-time"
-    exit
-fi
-
-
-
-
-
 port=$1
-path=$2
-period=$3
-scheme=$4
+path=/home/luca/Orca/rl-module
+period=20
+scheme="cubic"
 id=0
-finish_time=$5
+finish_time=60
 max_it=0
 
 
