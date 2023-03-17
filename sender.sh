@@ -4,7 +4,7 @@ path=/home/luca/Orca/rl-module
 period=20
 scheme="cubic"
 id=0
-finish_time=60
+finish_time=600
 max_it=0
 
 
