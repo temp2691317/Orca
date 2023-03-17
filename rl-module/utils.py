@@ -30,7 +30,7 @@ def configure_logging(path_to_log_directory):
     logger.setLevel(logging.INFO)
 
     if not os.path.exists(path_to_log_directory):
-        os.makedirs(path_to_log_directory)
+        os.makedirs(path_to_log_directory, exist_ok=True)
     handler = logging.FileHandler(filename=os.path.join(path_to_log_directory, "result.log"))
 
     handler.setLevel(logging.INFO)

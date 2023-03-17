@@ -1,0 +1,63 @@
+# mahimahi mm-link (Downlink) [/home/luca/Orca/rl-module/../traces/wired12] > test_down.txt
+# command line: 'mm-link' '/home/luca/Orca/rl-module/../traces/wired12' '/home/luca/Orca/rl-module/../traces/wired12' '--downlink-log=test_down.txt' '--uplink-queue=droptail' '--uplink-queue-args="packets=200"' '--downlink-queue=droptail' '--downlink-queue-args="packets=200"' '--' 'sh' '-c' 'iperf3 -c $MAHIMAHI_BASE -R -p 4444 -i 0.1 --logfile test.txt -t 60'
+# queue: droptail [packets=200]
+# init timestamp: 1674296995026
+# base timestamp: 32
+# mahimahi config: [delay 10 ms] 
+32 + 80
+32 + 52
+32 + 80
+33 # 1504
+33 - 80 1
+33 - 52 1
+33 - 80 1
+34 # 1504
+35 # 1504
+36 # 1504
+37 # 1504
+38 # 1504
+39 # 1504
+40 # 1504
+41 # 1504
+42 # 1504
+43 # 1504
+44 # 1504
+45 # 1504
+46 # 1504
+47 # 1504
+48 # 1504
+49 # 1504
+50 # 1504
+51 # 1504
+52 # 1504
+53 # 1504
+54 # 1504
+54 + 64
+55 # 1504
+55 - 64 1
+56 # 1504
+57 # 1504
+58 # 1504
+59 # 1504
+60 # 1504
+61 # 1504
+62 # 1504
+63 # 1504
+64 # 1504
+65 # 1504
+66 # 1504
+67 # 1504
+68 # 1504
+69 # 1504
+70 # 1504
+71 # 1504
+72 # 1504
+73 # 1504
+74 # 1504
+75 # 1504
+76 # 1504
+76 + 56
+76 + 56
+77 # 1504
+77 - 56 1
+77 - 56 1
