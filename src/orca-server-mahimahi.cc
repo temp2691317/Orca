@@ -323,7 +323,7 @@ void* TimerThread(void* information)
         {
             sleep(1);
             elapsed=(unsigned int)((timestamp()-start)/1000000);      //unit s
-            if (elapsed>duration)    
+            if (elapsed>=duration)    
             {
                 send_traffic=false;
             }

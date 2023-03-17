@@ -4,3 +4,6 @@ client
 *orca-server-mahimahi
 *.luca-desktop
 rl-module/orca-server-mahimahi
+rl-module/clientThr
+clientThr
+*.pyc
