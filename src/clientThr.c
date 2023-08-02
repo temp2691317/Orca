@@ -39,6 +39,10 @@
 #include <time.h>
 #include <inttypes.h>
 #include <sys/time.h>
+#include <memory>
+#include <string>
+#include <stdexcept>
+#include <iostream>
 
 #include "common.h"
 
@@ -59,6 +63,19 @@
 
 struct timeval tv_start;	//Start time (after three way handshake)
 struct timeval tv_end;		//End time
+
+
+
+template<typename ... Args>
+std::string string_format( const std::string& format, Args ... args )
+{
+    int size_s = std::snprintf( nullptr, 0, format.c_str(), args ... ) + 1; // Extra space for '\0'
+    if( size_s <= 0 ){ throw std::runtime_error( "Error during formatting." ); }
+    auto size = static_cast<size_t>( size_s );
+    std::unique_ptr<char[]> buf( new char[ size ] );
+    std::snprintf( buf.get(), size, format.c_str(), args ... );
+    return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
+}
 
 //Print usage information
 void usage();
@@ -249,7 +266,7 @@ int main(int argc, char **argv)
     DBGMARK(DBG,1,"after sending request\n");
 	//Receive data
 	struct timeval t1, t2, tStart, tEnd, timeresult;
-    	double elapsedTime, totalElapsedTime;
+    double elapsedTime, totalElapsedTime;
 
         //start timer
 	gettimeofday(&t1, NULL);
@@ -257,99 +274,9 @@ int main(int argc, char **argv)
 	double lensum = 0;
 	double totalLenSum = 0;
 	double tick = 0;
-	FILE *fptr;
-	char* filename;
-	char scheme[BUFSIZE];
-   	char *envvarscheme = "SCHEME";
-
-	char bw[BUFSIZE];
-   	char *envvarbw = "BW";
-
-	char delay[BUFSIZE];
-   	char *envvardelay = "DELAY";
-
-	char qsize[BUFSIZE];
-   	char *envvarqsize = "QSIZE";
-
-	char resultsroot[BUFSIZE];
-   	char *envvarresultsroot = "RESULTS_ROOT";
-
-		 // Make sure envar actually exists
-	    if(!getenv(envvarscheme)){
-		fprintf(stderr, "The environment variable %s was not found.\n", envvarscheme);
-		exit(1);
-	    }
-
-	    // Make sure the buffer is large enough to hold the environment variable
-	    // value. 
-	    if(snprintf(scheme, BUFSIZE, "%s", getenv(envvarscheme)) >= BUFSIZE){
-		fprintf(stderr, "BUFSIZE of %d was too small. Aborting\n", BUFSIZE);
-		exit(1);
-	    }
-
-	 // Make sure envar actually exists
-	    if(!getenv(envvarbw)){
-		fprintf(stderr, "The environment variable %s was not found.\n", envvarbw);
-		exit(1);
-	    }
-
-	    // Make sure the buffer is large enough to hold the environment variable
-	    // value. 
-	    if(snprintf(bw, BUFSIZE, "%s", getenv(envvarbw)) >= BUFSIZE){
-		fprintf(stderr, "BUFSIZE of %d was too small. Aborting\n", BUFSIZE);
-		exit(1);
-	    }
-	 // Make sure envar actually exists
-	    if(!getenv(envvardelay)){
-		fprintf(stderr, "The environment variable %s was not found.\n", envvardelay);
-		exit(1);
-	    }
-
-	    // Make sure the buffer is large enough to hold the environment variable
-	    // value. 
-	    if(snprintf(delay, BUFSIZE, "%s", getenv(envvardelay)) >= BUFSIZE){
-		fprintf(stderr, "BUFSIZE of %d was too small. Aborting\n", BUFSIZE);
-		exit(1);
-	    }
-	// Make sure envar actually exists
-	    if(!getenv(envvarqsize)){
-		fprintf(stderr, "The environment variable %s was not found.\n", envvarqsize);
-		exit(1);
-	    }
-
-	    // Make sure the buffer is large enough to hold the environment variable
-	    // value. 
-	    if(snprintf(qsize, BUFSIZE, "%s", getenv(envvarqsize)) >= BUFSIZE){
-		fprintf(stderr, "BUFSIZE of %d was too small. Aborting\n", BUFSIZE);
-		exit(1);
-	    }
-
-	    // Make sure envar actually exists
-	    if(!getenv(envvarresultsroot)){
-		fprintf(stderr, "The environment variable %s was not found.\n", envvarresultsroot);
-		exit(1);
-	    }
-
-	    // Make sure the buffer is large enough to hold the environment variable
-	    // value. 
-	    if(snprintf(resultsroot, BUFSIZE, "%s", getenv(envvarresultsroot)) >= BUFSIZE){
-		fprintf(stderr, "BUFSIZE of %d was too small. Aborting\n", BUFSIZE);
-		exit(1);
-	    }
+	std::string tmp;
 	
-
-	asprintf(&filename, "%s/goodputs/goodput_%s_%smbps_%sdel_%s_q_flow_%d.txt", resultsroot,scheme, bw, delay, qsize, flowid);
-
-	fptr = fopen(filename,"w");
-	if(fptr == NULL)
-	   {
-	      printf("Error!");   
-	      exit(1);             
-	   }
-	fprintf(fptr,"time,goodput,bytes,totalgoodput\n");
-	fflush(fptr);
-	fsync(fileno(fptr));
-
+	std::string output("----START----\n");
 	while(1)
 	{	
 
@@ -370,9 +297,9 @@ int main(int argc, char **argv)
 		totalLenSum =  totalLenSum + (double)len;
 		if(elapsedTime >= interval){
 			tick = tick+elapsedTime;
-       			fprintf(fptr,"%f,%f,%f,%f\n", tick ,(((double)lensum)/elapsedTime * 8)/(1000*1000),totalLenSum, (((double)totalLenSum)/totalElapsedTime * 8)/(1000*1000));
-			fflush(fptr);
-			fsync(fileno(fptr));
+       		
+			tmp = string_format("%f,%f%s,%f,%f\n", tick ,(((double)lensum)/elapsedTime * 8)/(1000*1000),"e+06",totalLenSum, (((double)totalLenSum)/totalElapsedTime * 8)/(1000*1000));
+			output = output + tmp;
 			lensum = 0;
 			t1 = t2;
 
@@ -383,15 +310,12 @@ int main(int argc, char **argv)
 	
 	gettimeofday(&tEnd, NULL);
 	totalElapsedTime = (tEnd.tv_sec - tStart.tv_sec); 
-       	fprintf(fptr,"%f,%f\n", totalElapsedTime,(((double)totalLenSum)/totalElapsedTime * 8)/(1000*1000));
-	fflush(fptr);
-	fsync(fileno(fptr));
+	output += "----END----\n";
+	std::cout << output << std::endl;
 
     //Close connection
     close(sockfd);
-    fclose(fptr);
-    free(filename);
-    DBGMARK(DBG,1,"after receiving data\n\n");
+	DBGMARK(DBG,1,"after receiving data\n\n");
     return 0;
 }
 

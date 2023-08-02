@@ -28,9 +28,51 @@
 #include <cstdlib>
 #include <sys/select.h>
 #include "define.h"
+#include <memory>
+#include <string>
+#include <stdexcept>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <fstream>
+
 //#define CHANGE_TARGET 1
 #define MAX_CWND 10000
 #define MIN_CWND 4
+
+std::string vectorToCsv(const std::vector<std::vector<double>>& data, const std::vector<std::string>& columns) {
+    std::stringstream ss;
+    
+    // Write column names to the CSV string
+    for(size_t i = 0; i < columns.size(); ++i){
+        if(i != 0) ss << ",";
+        ss << columns[i];
+    }
+    ss << "\n";
+
+    // Write data rows to the CSV string
+    for(const auto& row : data){
+        for(size_t i = 0; i < row.size(); ++i){
+            if(i != 0) ss << ",";
+            ss << row[i];
+        }
+        ss << "\n";
+    }
+
+    return ss.str();
+}
+
+
+template<typename ... Args>
+std::string string_format( const std::string& format, Args ... args )
+{
+    int size_s = std::snprintf( nullptr, 0, format.c_str(), args ... ) + 1; // Extra space for '\0'
+    if( size_s <= 0 ){ throw std::runtime_error( "Error during formatting." ); }
+    auto size = static_cast<size_t>( size_s );
+    std::unique_ptr<char[]> buf( new char[ size ] );
+    std::snprintf( buf.get(), size, format.c_str(), args ... );
+    return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
+}
 
 int main(int argc, char **argv)
 {
@@ -318,14 +360,22 @@ void* TimerThread(void* information)
     uint64_t start=timestamp();
     unsigned int elapsed; 
     if ((duration!=0))
-    {
+    {   
         while(send_traffic)
         {
             sleep(1);
-            elapsed=(unsigned int)((timestamp()-start)/1000000);      //unit s
+            old_elapsed = elapsed;
+            elapsed=(double)((timestamp()-start)/1000000.0);      //unit s
+
+            std::cout << timestamp()/1000000.0 << "," << std::accumulate(std::begin(pacing_rates), std::end(pacing_rates), 0.0)/pacing_rates.size()*8 << "," << bytes_sent << std::endl;
+            // printf(std::cout, "%f,%f,%f\n", timestamp() , bytes_sent/(elapsed - old_elapsed) * 8, bytes_sent);
+            pacing_rates.clear();
+            bytes_sent = 0;
             if (elapsed>=duration)    
             {
                 send_traffic=false;
+                std::cout << "----END----" << std::endl;
+
             }
         }
     }
@@ -395,12 +445,16 @@ void* CntThread(void* information)
     int get_info_error_counter=0;
     int actor_is_dead_counter=0;
     int tmp_step=0;
+    std::string output, tmp;
+
     while(send_traffic)  
 	{
        for(int i=0;i<flow_index;i++)
        {
            got_no_zero=0;
            usleep(report_period*1000);
+           double large_scope_delay;
+           double large_scope_time_delta;
            while(!got_no_zero && send_traffic)
            {
                 ret1= get_orca_info(sock_for_cnt[i],&orca_info);
@@ -415,9 +469,13 @@ void* CntThread(void* information)
                     
                     double time_delta=(double)(t1-t0)/1000000.0;
                     double delay=(double)orca_info.avg_urtt/1000.0;
+                    large_scope_delay = delay;
+                    large_scope_time_delta = time_delta;
+
                     min_rtt_=(double)(orca_info.min_rtt/1000.0);
                     lost_bytes=(double)(orca_info.lost_bytes);
                     pacing_rate=(double)(orca_info.pacing_rate);
+                    pacing_rates.push_back(pacing_rate);
                     lost_rate=lost_bytes/time_delta;   //Rate in MBps
                     srtt_ms=(double)((orca_info.srtt_us>>3)/1000.0);
                     snd_ssthresh=(double)(orca_info.snd_ssthresh);
@@ -449,6 +507,8 @@ void* CntThread(void* information)
                             msg_id,delay,(double)orca_info.thr,(double)orca_info.cnt,(double)time_delta,
                             (double)target,(double)orca_info.cwnd, pacing_rate,lost_rate,srtt_ms,snd_ssthresh,packets_out
                             ,retrans_out,max_packets_out,(double)orca_info.mss,min_rtt_);
+
+
                     memcpy(shared_memory,message,sizeof(message));
                     if ((duration_steps!=0))
                     {
@@ -487,6 +547,7 @@ void* CntThread(void* information)
            {
                pre_id_tmp=atoi(num);
                target_ratio=atoi(alpha);
+               double target_ratio_backup =target_ratio;
                if(pre_id!=pre_id_tmp /*&& target_ratio!=OK_SIGNAL*/)
                {
                   got_alpha=true; 
@@ -497,6 +558,12 @@ void* CntThread(void* information)
                       target_ratio=MIN_CWND;
 
                   ret1 = setsockopt(sock_for_cnt[i], IPPROTO_TCP,TCP_CWND, &target_ratio, sizeof(target_ratio));
+                  
+                    //Record all states observed
+                    std::vector<double> row =  {(double)timestamp(),(double)large_scope_delay,(double)orca_info.thr,(double)orca_info.cnt,(double)large_scope_time_delta,
+                            (double)target,(double)orca_info.cwnd, (double) pacing_rate, (double)lost_rate, (double)srtt_ms, (double)snd_ssthresh, (double)packets_out
+                            , (double)retrans_out, (double)max_packets_out,(double)orca_info.mss, (double)min_rtt_, (double)slow_start_passed, target_ratio_backup/100, (double)target_ratio};
+                    data.push_back(row);
                   if(ret1<0)
                   {
                       DBGPRINT(0,0,"setsockopt: for index:%d flow_index:%d ... %s (ret1:%d)\n",i,flow_index,strerror(errno),ret1);
@@ -518,7 +585,7 @@ void* CntThread(void* information)
            else{
                 if (error2_cnt==50)
                 {
-                    DBGPRINT(0,0,"got null values: (downlink:%s delay:%d qs:%d) Actor: %d iteration:%d\n",downlink,delay_ms,qsize,actor_id,step_it);
+                    // DBGPRINT(0,0,"got null values: (downlink:%s delay:%d qs:%d) Actor: %d iteration:%d\n",downlink,delay_ms,qsize,actor_id,step_it);
                     //FIXME:
                     //A Hack for now! Let's send a new state to get new action in case we have missed previous action. Why it happens?!
                     if((1+tmp_step)==(step_it))
@@ -548,6 +615,8 @@ void* CntThread(void* information)
      
        }
     }
+
+
     shmdt(shared_memory);
     shmctl(shmid, IPC_RMID, NULL);
     shmdt(shared_memory_rl);
@@ -652,6 +721,7 @@ void* DataThread(void* info)
 	//Send data with 8192 bytes each loop
 	DBGPRINT(0,0,"Server is sending the traffic ...\n");
 
+    std::cout << "----START----" << std::endl;
    // for(u64 i=0;i<loop;i++)
 	while(send_traffic)
     {
@@ -659,7 +729,9 @@ void* DataThread(void* info)
 		while(len>0)
 		{
 			DBGMARK(DBGSERVER,5,"++++++\n");
-			len-=send(sock_local,write_message,strlen(write_message),0);
+            sent=send(sock_local,write_message,strlen(write_message),0);
+			len-=sent;
+            bytes_sent+=sent;
 		    usleep(50);         
             DBGMARK(DBGSERVER,5,"------\n");
 		}
@@ -668,6 +740,32 @@ void* DataThread(void* info)
 	flow->flowinfo.rem_size=0;
     done=true;
     DBGPRINT(DBGSERVER,1,"done=true\n");
+    linger l;
+    l.l_onoff=1;
+    l.l_linger=0;
+
+    std::vector<std::string> columns = {
+    "timestamp", "delay", "thr", "cnt", "time_delta", "target", "cwnd",
+    "pacing_rate", "lost_rate", "srtt_ms", "snd_ssthresh", "packets_out",
+    "retrans_out", "max_packets_out", "mss", "min_rtt", "slow_start_passed","alpha", "target_ratio"
+};
+    std::string csv_str = vectorToCsv(data, columns);
+
+    std::string str1(getenv("EXPERIMENT_PATH"));
+    std::string str2 = "/obsdata.csv";
+    str1 += str2;
+
+    std::ofstream outFile(str1.c_str());
+    
+    if (outFile.is_open()) {
+        outFile << csv_str;
+        outFile.close();
+    } else {
+        std::cout << "Unable to open file: " << str1.c_str() << std::endl;
+    }
+
+
+    setsockopt(sock_local, SOL_SOCKET, SO_LINGER, (const char*)&l, sizeof(l));
     close(sock_local);
     DBGPRINT(DBGSERVER,1,"done\n");
 	return((void *)0);

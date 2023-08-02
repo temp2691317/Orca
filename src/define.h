@@ -32,8 +32,13 @@ pthread_mutex_t lockit;
 #include <unistd.h>
 #include <math.h>
 #include <time.h>
+#include <string>
+#include <iostream>
+#include <numeric>
+#include <vector>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+
 
 //Shared Memory ==> Communication with RL-Module -----*
 #include <stdio.h>
@@ -63,10 +68,17 @@ typedef uint64_t  u64;
 typedef int64_t  i64;
 typedef uint8_t  u8;
                 
+double old_elapsed = 0;
+u64 bytes_sent = 0;
+u64 sent = 0;
+std::vector<double> pacing_rates;
+
 bool    send_traffic=true;
 u32     step_it=0;
 u32     duration_steps=0;
 unsigned int duration=0;                     //If not zero, it would be the total duration for sending out the traffic.
+//Structures to keep track of the observed states and timestamps
+std::vector<std::vector<double>> data;
 
 
 struct timeval tv_start,tv_start2;	//Start time (after three way handshake)
